@@ -1,0 +1,26 @@
+version: '3'
+services:
+  web:
+    container_name: dockient-app
+    build: .
+    environment:
+      DEBUG: "false"
+      SECRET_KEY: secret
+      DATABASE_URL: postgres://pguser:pgpassword@postgres/dockient
+      PORT: 8000
+      LOG_LEVEL: INFO
+      NUM_WORKERS: 4
+      ALLOWED_HOSTS: "localhost"
+    ports:
+    - "8000:8000"
+    links:
+    - postgres
+  postgres:
+    container_name: dockient-db
+    image: postgres:11.5
+    ports:
+    - "5432:5432"
+    environment:
+      POSTGRES_USER: pguser
+      POSTGRES_PASSWORD: pgpassword
+      POSTGRES_DB: dockient
