@@ -36,7 +36,7 @@ class AuthTokenManager(models.Manager):
         if not user.is_authenticated:
             raise Exception("Cannot create auth token for unauthenticated user ", user)
         user_name, auth_token = self.create_new_token(user, expiry)
-        return "docker login -u {0} -p {1} -e none {2}".format(
+        return "docker login -u {0} -p {1} {2}".format(
             user_name, auth_token, settings.ADVERTISED_URL
         )
 

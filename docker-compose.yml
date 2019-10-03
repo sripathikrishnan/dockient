@@ -1,16 +1,35 @@
 version: '3'
 services:
+  nginx:
+    container_name: gatekeeper
+    build: nginx/
+    environment:
+      AUTH_URL: http://web:8000/docker-registry-authenticate/
+      UI_URL: http://web:8000
+      DOCKER_REGISTRY_URL: http://registry:5000
+    ports:
+    - "80:80"
+    - "443:443"
+    links:
+    - web
+    - registry
+  registry:
+    container_name: registry
+    image: "registry:2"
+    ports:
+    - "5000:5000"
   web:
     container_name: dockient-app
     build: .
     environment:
-      DEBUG: "false"
+      ADVERTISED_URL: http://localhost
+      DEBUG: "true"
       SECRET_KEY: secret
       DATABASE_URL: postgres://pguser:pgpassword@postgres/dockient
       PORT: 8000
       LOG_LEVEL: INFO
       NUM_WORKERS: 4
-      ALLOWED_HOSTS: "localhost"
+      ALLOWED_HOSTS: "web"
     ports:
     - "8000:8000"
     links:
