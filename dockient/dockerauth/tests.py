@@ -1,10 +1,11 @@
 from django.test import TestCase, override_settings
-from .models import AuthToken
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
 import re
 import datetime
 import time
+
+from .models import AuthToken, MAX_ACTIVE_TOKENS
 
 
 class AuthTokenTest(TestCase):
@@ -34,8 +35,8 @@ class AuthTokenTest(TestCase):
         ):
             AuthToken.objects.get_docker_login(self.anonymous)
 
-    def test_user_cannot_have_more_than_5_tokens(self):
-        for _ in range(6):
+    def test_user_cannot_have_several_active_tokens(self):
+        for _ in range(MAX_ACTIVE_TOKENS):
             AuthToken.objects.get_docker_login(self.user)
         with self.assertRaisesRegexp(Exception, "Too many active tokens"):
             AuthToken.objects.get_docker_login(self.user)

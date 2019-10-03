@@ -45,7 +45,7 @@ class AuthTokenManager(models.Manager):
         num_active_tokens = AuthToken.objects.filter(
             user=user, expires_at__gt=now
         ).count()
-        if num_active_tokens > MAX_ACTIVE_TOKENS:
+        if num_active_tokens >= MAX_ACTIVE_TOKENS:
             raise Exception("Too many active tokens")
 
         auth_token = secrets.token_urlsafe(60)
