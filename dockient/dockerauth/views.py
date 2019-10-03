@@ -1,13 +1,26 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods
 from django.http import HttpResponse
+from django.contrib.auth import logout as django_logout
 
 from .models import AuthToken
 import re
 import base64
 
 BASIC_AUTH_HEADER_PATTERN = re.compile("Basic (.+)")
+
+
+def login(request):
+    # This brings up google oauth consent screen
+    return redirect("/login/google-oauth2/")
+
+
+def logout(request):
+    # this only logs out the user from django
+    # we cannot logout the user from google
+    django_logout(request)
+    return render(request, "accounts/logged_out.html")
 
 
 @login_required
