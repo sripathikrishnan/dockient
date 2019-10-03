@@ -1,0 +1,15 @@
+<html>
+    <body>
+        Hello, {{user.username}}!
+        <form method="post">
+            {% csrf_token %}
+            <input type="submit" name="reveal_docker_login" value="Docker Login"/>
+        </form>
+
+        {% if docker_login %}
+            <div>
+                {{ docker_login}}
+            </div>
+        {% endif %}
+    </body>
+</html>
