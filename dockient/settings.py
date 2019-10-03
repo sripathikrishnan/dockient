@@ -36,6 +36,8 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "dockient.dockerauth",
+    "dockient.namespace",
 ]
 
 MIDDLEWARE = [
@@ -163,3 +165,6 @@ LOGGING = {
         },
     },
 }
+
+
+ADVERTISED_URL = config("ADVERTISED_URL", "http://localhost:5000")
