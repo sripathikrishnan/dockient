@@ -66,7 +66,7 @@ COPY dockient dockient
 # Generate static files
 # Note that we pass a dummy secret key
 # This secret key is not used when the server is actually started
-RUN SECRET_KEY=ignore python manage.py collectstatic --noinput
+RUN GOOGLE_KEY=ignore GOOGLE_SECRET_KEY=ignore SECRET_KEY=ignore python manage.py collectstatic --noinput
 
 # Switch to gunicorn user
 # This makes our container a lot more secure

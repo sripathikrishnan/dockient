@@ -40,6 +40,20 @@ class AuthTokenManager(models.Manager):
             user_name, auth_token, settings.ADVERTISED_URL
         )
 
+    def list_tokens(self, user):
+        now = timezone.now()
+        tokens = (
+            AuthToken.objects.filter(user=user, expires_at__gt=now)
+            .order_by("-created_at")
+            .values()
+        )
+
+        # Mask the tokens before returning
+        for token in tokens:
+            token["masked_token"] = _mask(token["token"])
+            del token["token"]
+        return tokens
+
     def create_new_token(self, user, expiry):
         now = timezone.now()
         num_active_tokens = AuthToken.objects.filter(
@@ -61,3 +75,7 @@ class AuthToken(models.Model):
     token = models.CharField(max_length=100, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField()
+
+
+def _mask(token):
+    return token[:4] + "**************"

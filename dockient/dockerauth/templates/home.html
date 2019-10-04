@@ -1,14 +1,43 @@
 <html>
     <body>
-        Hello, {{user.username}}!
-        <form method="post">
-            {% csrf_token %}
-            <input type="submit" name="reveal_docker_login" value="Docker Login"/>
-        </form>
-
         {% if docker_login %}
             <div>
+                Run the following command on a command prompt:
+            </div>
+            <p>
                 {{ docker_login}}
+            </p>
+            <p>
+                NOTE: Once you close this page, you cannot retrieve this token again.
+            </p>
+        {% else %}
+            <div>
+                Hello, {{user.username}}!
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                <input type="submit" name="reveal_docker_login" value="New Token"/>
+            </form>
+            <div>
+                <h3>Existing Tokens:</h3>
+                <table>
+                    <thead>
+                        <th>Index</th>
+                        <th>Creation Date</th>
+                        <th>Expiry Date</th>
+                        <th>Token</th>
+                        <th>Actions</th>
+                    </thead>
+                    {% for token in existing_tokens %}
+                    <tr>
+                        <td>{{forloop.counter}}</td>
+                        <td>{{token.created_at}}</td>
+                        <td>{{token.expires_at}}</td>
+                        <td>{{token.masked_token}}</td>
+                        <td>Revoke</td>
+                    </tr>
+                    {% endfor %}
+                </table>
             </div>
         {% endif %}
     </body>

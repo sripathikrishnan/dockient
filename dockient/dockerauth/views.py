@@ -25,7 +25,8 @@ def logout(request):
 
 @login_required
 def homepage(request):
-    context = {"user": request.user}
+    existing_tokens = AuthToken.objects.list_tokens(request.user)
+    context = {"user": request.user, "existing_tokens": existing_tokens}
     if request.method == "POST":
         login_command = AuthToken.objects.get_docker_login(request.user)
         context["docker_login"] = login_command
