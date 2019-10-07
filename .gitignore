@@ -9,3 +9,5 @@ db.sqlite3
 .env
 static
 public/version.html
+cloud-init.sh
+cloud-init-tokenservice.sh
