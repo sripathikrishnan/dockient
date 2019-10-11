@@ -16,16 +16,22 @@ DEFAULT_EXPIRY = datetime.timedelta(days=365)
 MAX_ACTIVE_TOKENS = 5
 
 
+class AuthException(Exception):
+    pass
+
+
 class AuthTokenManager(models.Manager):
-    def authenticate(self, username, auth_token):
+    def authenticate(self, access_key, secret_access_key):
         try:
             now = timezone.now()
-            token = AuthToken.objects.get(
-                user__username=username, token=auth_token, expires_at__gt=now
+            token = AuthToken.objects.select_related("user").get(
+                access_key=access_key,
+                secret_access_key=secret_access_key,
+                expires_at__gt=now,
             )
-            return True
+            return token.user
         except ObjectDoesNotExist as e:
-            return False
+            raise AuthException("Invalid credentials")
 
     def get_docker_login(self, user, expiry=DEFAULT_EXPIRY):
         """Generate a docker login command
@@ -35,9 +41,9 @@ class AuthTokenManager(models.Manager):
          """
         if not user.is_authenticated:
             raise Exception("Cannot create auth token for unauthenticated user ", user)
-        user_name, auth_token = self.create_new_token(user, expiry)
+        access_key, secret_access_key = self.create_new_token(user, expiry)
         return "docker login -u {0} -p {1} {2}".format(
-            user_name, auth_token, settings.ADVERTISED_URL
+            access_key, secret_access_key, settings.ADVERTISED_URL
         )
 
     def list_tokens(self, user):
@@ -50,9 +56,12 @@ class AuthTokenManager(models.Manager):
 
         # Mask the tokens before returning
         for token in tokens:
-            token["masked_token"] = _mask(token["token"])
-            del token["token"]
+            del token["secret_access_key"]
         return tokens
+
+    def delete_token(self, user, id):
+        token = AuthToken.objects.get(id=id, user=user)
+        token.delete()
 
     def create_new_token(self, user, expiry):
         now = timezone.now()
@@ -62,20 +71,24 @@ class AuthTokenManager(models.Manager):
         if num_active_tokens >= MAX_ACTIVE_TOKENS:
             raise Exception("Too many active tokens")
 
-        auth_token = secrets.token_urlsafe(60)
-        user_name = user.username
+        access_key = secrets.token_urlsafe(20)
+        secret_access_key = secrets.token_urlsafe(20)
         expires_at = now + expiry
-        AuthToken.objects.create(user=user, token=auth_token, expires_at=expires_at)
-        return (user_name, auth_token)
+        AuthToken.objects.create(
+            user=user,
+            access_key=access_key,
+            secret_access_key=secret_access_key,
+            expires_at=expires_at,
+        )
+        return (access_key, secret_access_key)
 
 
+# One user can have many AuthTokens
+# MAX_ACTIVE_TOKENS can be valid simultaneously
 class AuthToken(models.Model):
     objects = AuthTokenManager()
     user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE)
-    token = models.CharField(max_length=100, unique=True)
+    access_key = models.CharField(max_length=100, unique=True)
+    secret_access_key = models.CharField(max_length=100, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField()
-
-
-def _mask(token):
-    return token[:4] + "**************"

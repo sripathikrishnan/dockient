@@ -6,8 +6,8 @@ urlpatterns = [
     url(r"^accounts/login", views.login, name="login"),
     url(r"^accounts/logout", views.logout, name="logout"),
     url(
-        r"^docker-registry-authenticate/",
-        views.docker_registry_authenticate,
-        name="docker_registry_authicate",
+        r"^token/",
+        views.docker_registry_token_service,
+        name="docker_registry_token_service",
     ),
 ]

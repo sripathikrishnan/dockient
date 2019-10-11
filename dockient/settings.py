@@ -197,4 +197,12 @@ LOGGING = {
 }
 
 
-ADVERTISED_URL = config("ADVERTISED_URL", "http://localhost:5000")
+ADVERTISED_URL = config("ADVERTISED_URL", None)
+TOKEN_SERVICE_PRIVATE_KEY = config("TOKEN_SERVICE_PRIVATE_KEY", None)
+
+# We don't really need the public key
+# because we are only creating tokens, not verifying it
+# TOKEN_SERVICE_PUBLIC_KEY = config("TOKEN_SERVICE_PUBLIC_KEY", None)
+
+TOKEN_SERVICE_ISSUER = config("TOKEN_SERVICE_ISSUER", "tokenservice.metalaunch.com")
+TOKEN_SERVICE_EXPIRY_IN_SECONDS = 7 * 24 * 60 * 60

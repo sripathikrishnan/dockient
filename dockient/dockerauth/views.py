@@ -1,14 +1,18 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.contrib.auth import logout as django_logout
+from django.contrib.auth.models import AnonymousUser
+from django.conf import settings
 
-from .models import AuthToken
+from .models import AuthToken, AuthException
 import re
 import base64
+import jwt
+import time
 
-BASIC_AUTH_HEADER_PATTERN = re.compile("Basic (.+)")
+BASIC_AUTH_HEADER_PATTERN = re.compile("Basic ([a-zA-Z0-9+/=_:-]+)")
 
 
 def login(request):
@@ -34,32 +38,82 @@ def homepage(request):
 
 
 # Intentionally disabled django @login_required
+#
 # This method is called by nginx whenever docker push / pull command is issued
 # This method should return status = 200 if the user is authorized to perform the action
 # Any other status code means nginx / docker registry should deny the action
-def docker_registry_authenticate(request):
-    if "Authorization" in request.headers:
-        basic_auth_header = request.headers["Authorization"]
-        matcher = BASIC_AUTH_HEADER_PATTERN.match(basic_auth_header)
-        if matcher:
-            b64_str = matcher.group(1)
-            try:
-                username_and_password = base64.b64decode(b64_str)
-            except:
-                return HttpResponse(status=400)
+def docker_registry_token_service(request):
+    try:
+        basic_auth_header = request.headers.get("Authorization", None)
+        user = _authenticate(basic_auth_header)
+        service = request.GET["service"]
+        scope = request.GET["scope"]
+        token = _generate_jwt(user, service, scope)
+        return JsonResponse({"token": token.decode("ascii")})
+    except AuthException as e:
+        return JsonResponse({"error": str(e)}, status=401)
 
-            try:
-                username_and_password = username_and_password.decode("ascii")
-            except:
-                return HttpResponse(status=400)
 
-            username, password = username_and_password.split(":")
-            is_authenticated = AuthToken.objects.authenticate(username, password)
-            if is_authenticated:
-                return HttpResponse(status=200)
+def _authenticate(basic_auth_header):
+    if not basic_auth_header:
+        raise AuthException("Empty Authorization Header")
+    matcher = BASIC_AUTH_HEADER_PATTERN.match(basic_auth_header)
+    if not matcher:
+        raise AuthException("Invalid format of Authorization Header")
 
-    not_logged_in = HttpResponse(status=401)
-    not_logged_in[
-        "WWW-Authenticate"
-    ] = 'Basic realm="User Visible Realm", charset="UTF-8"'
-    return not_logged_in
+    b64_str = matcher.group(1)
+    try:
+        username_and_password = base64.b64decode(b64_str)
+    except:
+        raise AuthException("Basic auth header is not valid base64")
+
+    try:
+        username_and_password = username_and_password.decode("ascii")
+    except:
+        raise AuthException("Basic auth header contains non-ascii symbols")
+
+    username, password = username_and_password.split(":")
+    return AuthToken.objects.authenticate(username, password)
+
+
+def authorize(user, service, scope):
+    pass
+
+
+# scope is a string like repository:samalba/my-app:pull,push
+# parsed object is similar to
+# {
+#   "type": "repository",
+#   "name": "samalba/my-app",
+#   "actions": [
+#        "push", "pull"
+#   ]
+# }
+def _parse_scope(scope):
+    _type, name, raw_actions = scope.split(":")
+    if "," in raw_actions:
+        actions = raw_actions.split(",")
+    else:
+        actions = [raw_actions]
+    return {"type": _type, "name": name, "actions": actions}
+
+
+def _generate_jwt(user, service, scope):
+    access = _parse_scope(scope)
+    nbf = round(time.time())
+    iat = nbf
+    exp = iat + settings.TOKEN_SERVICE_EXPIRY_IN_SECONDS
+
+    jti = "some_random_string"
+    claims = {
+        "iss": settings.TOKEN_SERVICE_ISSUER,
+        "sub": user.username,
+        "aud": service,
+        "exp": exp,
+        "nbf": nbf,
+        "iat": iat,
+        "jti": jti,
+        "access": access,
+    }
+
+    return jwt.encode(claims, settings.TOKEN_SERVICE_PRIVATE_KEY, algorithm="RS256")
