@@ -11,3 +11,4 @@ static
 public/version.html
 cloud-init.sh
 cloud-init-tokenservice.sh
+registry
