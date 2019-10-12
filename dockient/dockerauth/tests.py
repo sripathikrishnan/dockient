@@ -9,8 +9,16 @@ import time
 import base64
 import jwt
 
-from .models import AuthToken, MAX_ACTIVE_TOKENS, AuthException
+from .models import (
+    AuthToken,
+    MAX_ACTIVE_TOKENS,
+    AuthException,
+    Namespace,
+    NamespaceAccessRule,
+)
 from .views import docker_registry_token_service
+
+from .acls import Request, NamespaceAccess
 
 DUMMY_PRIVATE_KEY = b"""-----BEGIN PRIVATE KEY-----
 MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCyWlCnJEIp245b
@@ -153,6 +161,75 @@ class TokenServiceTests(TestCase):
         return jwt.decode(
             response.json()["token"], DUMMY_PUBLIC_KEY, audience="Registry Service"
         )
+
+
+class AclTests(TestCase):
+    def setUp(self):
+        self.owner = get_user_model().objects.create_user(
+            username="owner", password="12345678"
+        )
+        self.collaborator = get_user_model().objects.create_user(
+            username="collaborator", password="12345678"
+        )
+        self.reader = get_user_model().objects.create_user(
+            username="reader", password="12345678"
+        )
+        self.randomjoe = get_user_model().objects.create_user(
+            username="randomjoe", password="12345678"
+        )
+        self.anonymous = AnonymousUser()
+
+        # Create a namespace
+        self.namespace = Namespace(owner=self.owner, name="example")
+        self.namespace.save()
+
+        # Grant collaborattor push access
+        NamespaceAccessRule(
+            namespace=self.namespace, user=self.collaborator, action="push"
+        ).save()
+        NamespaceAccessRule(
+            namespace=self.namespace, user=self.reader, action="pull"
+        ).save()
+
+    def test_owner_can_push(self):
+        self.check_user_can_perform(self.owner, "push")
+
+    def test_owner_can_pull(self):
+        self.check_user_can_perform(self.owner, "pull")
+
+    def test_collaborator_can_push(self):
+        self.check_user_can_perform(self.collaborator, "push")
+
+    def test_collaborator_can_pull(self):
+        self.check_user_can_perform(self.collaborator, "pull")
+
+    def test_reader_cannot_push(self):
+        self.check_user_cannot_perform(self.reader, "push")
+
+    def test_reader_can_pull(self):
+        self.check_user_can_perform(self.reader, "pull")
+
+    def check_user_can_perform(self, user, action):
+        request = Request(
+            user=user,
+            tipe="repository",
+            namespace=self.namespace.name,
+            image="random",
+            actions=action,
+        )
+        allowed_actions = NamespaceAccess().allowed_actions(request)
+        self.assertTrue(action in allowed_actions)
+
+    def check_user_cannot_perform(self, user, action):
+        request = Request(
+            user=user,
+            tipe="repository",
+            namespace=self.namespace.name,
+            image="random",
+            actions=action,
+        )
+        allowed_actions = NamespaceAccess().allowed_actions(request)
+        self.assertFalse(action in allowed_actions)
 
 
 def extract_credentials(login_prompt):

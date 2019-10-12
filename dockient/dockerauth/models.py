@@ -92,3 +92,17 @@ class AuthToken(models.Model):
     secret_access_key = models.CharField(max_length=100, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField()
+
+
+class Namespace(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    owner = models.ForeignKey(get_user_model(), on_delete=models.CASCADE)
+
+
+class NamespaceAccessRule(models.Model):
+    namespace = models.ForeignKey(Namespace, on_delete=models.CASCADE)
+    user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE)
+    action = models.CharField(
+        max_length=10,
+        choices=(("pull", "pull only"), ("push", "pull and push"), ("admin", "admin")),
+    )

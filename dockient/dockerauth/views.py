@@ -100,8 +100,12 @@ def _parse_scope(scope):
 
 def _generate_jwt(user, service, scope):
     access = _parse_scope(scope)
-    nbf = round(time.time())
-    iat = nbf
+    # iat = issued at time
+    iat = round(time.time())
+
+    # nbf = not before. JWT is considered invalid before this time
+    # provide a grace period of 60s for incorrect clock
+    nbf = iat - 60
     exp = iat + settings.TOKEN_SERVICE_EXPIRY_IN_SECONDS
 
     jti = "some_random_string"
